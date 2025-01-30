@@ -1,0 +1,5 @@
+#api_key: "YOUR_API_KEY" ## Please replace YOUR_API_KEY in .env file 
+llm_api_url: "https://api.example.com/llm"
+yfinance_ticker: "AAPL"
+trading_strategy: "long_term"
+log_level: "info"
