@@ -1,8 +1,13 @@
 # settings.py
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from a .env file if present
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+SECRET_KEY = os.getenv('SECRET_KEY', 'your-default-secret-key')
 
 SECRET_KEY = 'replace-with-a-secure-key'
 DEBUG = True
@@ -47,6 +52,42 @@ TEMPLATES = [
     },
 ]
 
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',  # Changed to DEBUG for more detailed logs
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'loggers': {
+        'stock_app': {
+            'handlers': ['file'],
+            'level': 'DEBUG',  # Changed to DEBUG
+            'propagate': True,
+        },
+    },
+}
+
+# Caching Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,  # 5 minutes
+    }
+}
+
 WSGI_APPLICATION = 'my_django_project.wsgi.application'
 
 DATABASES = {
@@ -63,3 +104,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Mistral AI Configuration
+MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY')
+MISTRAL_MODEL_NAME = os.getenv('MISTRAL_MODEL_NAME', 'mistral-large-latest')  # Default model name

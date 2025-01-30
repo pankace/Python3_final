@@ -1,24 +1,57 @@
+<!-- stock_app/templates/stock_app/stock.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Stock Chart</title>
-    <!-- Bootstrap CSS -->
+    <title>Stock Analysis with AI Chat</title>
+    <!-- Include Bootstrap CSS for styling (optional) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Include jQuery for AJAX (optional, you can use vanilla JS or other libraries) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        body {
-            padding-top: 20px;
+        /* Your existing styles */
+
+        /* Chat Window Styles */
+        .chat-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
         }
-        .sidebar {
-            min-height: 100vh;
-            background-color: #f8f9fa;
-            padding: 20px;
+        .chat-header {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
         }
-        .graph-container {
-            padding: 20px;
+        .chat-body {
+            padding: 10px;
+            flex-grow: 1;
+            overflow-y: auto;
+            height: 300px;
+        }
+        .chat-footer {
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        .chat-message {
+            margin-bottom: 10px;
+        }
+        .user-message {
+            text-align: right;
+        }
+        .ai-message {
+            text-align: left;
+            color: #007bff;
         }
     </style>
-    <!-- Optional: Include jQuery for dynamic form updates -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <div class="container-fluid">
@@ -64,53 +97,132 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS and dependencies (optional) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- JavaScript to dynamically update interval choices based on period selection -->
+    <!-- Chat Window -->
+    <div class="chat-window">
+        <div class="chat-header">
+            <h5>AI Strategy Chat</h5>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <!-- Chat messages will appear here -->
+        </div>
+        <div class="chat-footer">
+            <div class="input-group">
+                <input type="text" id="chat-input" class="form-control" placeholder="Type your message here..." />
+                <button id="send-chat" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Your existing JavaScript for chat functionality -->
     <script>
         $(document).ready(function(){
+            // Function to escape HTML to prevent XSS
+            function escapeHtml(text) {
+                var map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+            }
+
+            // Handle period selection change
             $('#id_period').change(function(){
                 var selectedPeriod = $(this).val();
-                $.ajax({
-                    url: "{% url 'get_intervals' %}",
-                    data: {
-                        'period': selectedPeriod
-                    },
-                    dataType: 'json',
-                    success: function (data) {
-                        var intervalSelect = $('#id_interval');
-                        intervalSelect.empty();
-                        if(data.intervals.length > 0){
-                            intervalSelect.append($('<option>', {
-                                value: '',
-                                text: 'Select Interval',
-                                disabled: true,
-                                selected: true
-                            }));
-                            $.each(data.intervals, function(index, value){
-                                intervalSelect.append($('<option>', {
-                                    value: value,
-                                    text: value
-                                }));
-                            });
-                            intervalSelect.prop('disabled', false);
-                        } else {
-                            intervalSelect.append($('<option>', {
-                                value: '',
-                                text: 'No intervals available',
-                                disabled: true,
-                                selected: true
-                            }));
-                            intervalSelect.prop('disabled', true);
+                if(selectedPeriod){
+                    $.ajax({
+                        url: "{% url 'get_intervals' %}",  // Ensure this resolves correctly
+                        data: {
+                            'period': selectedPeriod
+                        },
+                        dataType: 'json',
+                        success: function(data){
+                            var intervalSelect = $('#id_interval');
+                            intervalSelect.empty(); // Clear existing options
+
+                            if(data.intervals){
+                                // Populate with new intervals
+                                $.each(data.intervals, function(index, value){
+                                    intervalSelect.append($('<option></option>').attr('value', value).text(value));
+                                });
+                            } else if(data.error){
+                                // Handle errors returned from the server
+                                console.error('Error:', data.error);
+                                intervalSelect.append($('<option></option>').attr('value', '').text('Error fetching intervals'));
+                            }
+                        },
+                        error: function(xhr, status, error){
+                            console.error('AJAX Error:', error);
+                            var intervalSelect = $('#id_interval');
+                            intervalSelect.empty();
+                            intervalSelect.append($('<option></option>').attr('value', '').text('Error fetching intervals'));
                         }
-                    },
-                    error: function(){
-                        alert('Failed to fetch intervals. Please try again.');
-                    }
-                });
+                    });
+                }
+                else{
+                    // If no period is selected, clear the interval options
+                    $('#id_interval').empty();
+                }
             });
+
+            // Chat Functionality
+            $('#send-chat').click(function(){
+                sendMessage();
+            });
+
+            $('#chat-input').keypress(function(event){
+                if(event.which == 13){
+                    sendMessage();
+                }
+            });
+
+            function sendMessage(){
+                var message = $('#chat-input').val().trim();
+                var ticker = $('#id_ticker').val().trim();
+                var period = $('#id_period').val().trim();
+                var interval = $('#id_interval').val().trim();
+
+                if(message && ticker && period && interval){
+                    // Display user's message
+                    $('#chat-body').append('<div class="chat-message user-message"><strong>You:</strong> ' + escapeHtml(message) + '</div>');
+                    $('#chat-input').val('');
+                    $('#chat-body').scrollTop($('#chat-body')[0].scrollHeight);
+
+                    // Send AJAX request to chat endpoint
+                    $.ajax({
+                        url: "{% url 'chat_with_ai' %}",
+                        method: 'POST',
+                        data: {
+                            'message': message,
+                            'ticker': ticker,
+                            'period': period,
+                            'interval': interval,
+                            'csrfmiddlewaretoken': '{{ csrf_token }}'
+                        },
+                        dataType: 'json',
+                        success: function(data){
+                            if(data.response){
+                                $('#chat-body').append('<div class="chat-message ai-message"><strong>AI:</strong> ' + escapeHtml(data.response) + '</div>');
+                            } else if(data.error){
+                                $('#chat-body').append('<div class="chat-message ai-message"><strong>AI:</strong> ' + escapeHtml(data.error) + '</div>');
+                            }
+                            $('#chat-body').scrollTop($('#chat-body')[0].scrollHeight);
+                        },
+                        error: function(){
+                            $('#chat-body').append('<div class="chat-message ai-message"><strong>AI:</strong> An error occurred. Please try again.</div>');
+                            $('#chat-body').scrollTop($('#chat-body')[0].scrollHeight);
+                        }
+                    });
+                } else {
+                    alert('Please enter a message and ensure a stock, period, and interval are selected.');
+                }
+            }
         });
     </script>
+
+    <!-- Include Bootstrap JS (optional) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
