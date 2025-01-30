@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Chart</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+        }
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .graph-container {
+            padding: 20px;
+        }
+    </style>
+    <!-- Optional: Include jQuery for dynamic form updates -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 sidebar">
+                <h3>Stock Selection</h3>
+                <form method="POST" id="stock-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.ticker.label_tag }}
+                        {{ form.ticker }}
+                        {% if form.ticker.errors %}
+                            <div class="text-danger">{{ form.ticker.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.period.label_tag }}
+                        {{ form.period }}
+                        {% if form.period.errors %}
+                            <div class="text-danger">{{ form.period.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.interval.label_tag }}
+                        {{ form.interval }}
+                        {% if form.interval.errors %}
+                            <div class="text-danger">{{ form.interval.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Plot</button>
+                </form>
+            </div>
+            <!-- Main Content -->
+            <div class="col-md-9 graph-container">
+                <h1>Stock Chart</h1>
+                {% if graph_html %}
+                    {{ graph_html|safe }}
+                {% else %}
+                    <p>Please select a stock and time frame to display the chart.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies (optional) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- JavaScript to dynamically update interval choices based on period selection -->
+    <script>
+        $(document).ready(function(){
+            $('#id_period').change(function(){
+                var selectedPeriod = $(this).val();
+                $.ajax({
+                    url: "{% url 'get_intervals' %}",
+                    data: {
+                        'period': selectedPeriod
+                    },
+                    dataType: 'json',
+                    success: function (data) {
+                        var intervalSelect = $('#id_interval');
+                        intervalSelect.empty();
+                        if(data.intervals.length > 0){
+                            intervalSelect.append($('<option>', {
+                                value: '',
+                                text: 'Select Interval',
+                                disabled: true,
+                                selected: true
+                            }));
+                            $.each(data.intervals, function(index, value){
+                                intervalSelect.append($('<option>', {
+                                    value: value,
+                                    text: value
+                                }));
+                            });
+                            intervalSelect.prop('disabled', false);
+                        } else {
+                            intervalSelect.append($('<option>', {
+                                value: '',
+                                text: 'No intervals available',
+                                disabled: true,
+                                selected: true
+                            }));
+                            intervalSelect.prop('disabled', true);
+                        }
+                    },
+                    error: function(){
+                        alert('Failed to fetch intervals. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
